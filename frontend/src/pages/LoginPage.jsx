@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 import { GoogleIcon, GitHubIcon } from '../components/Icons';
+import { API_BASE_URL } from '../services/api';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -41,14 +42,12 @@ export default function LoginPage() {
 
   const handleGoogleLogin = () => {
     setError('');
-    const backendBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    window.location.href = `${backendBase}/auth/google`;
+    window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
   const handleGithubLogin = () => {
     setError('');
-    const backendBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    window.location.href = `${backendBase}/auth/github`;
+    window.location.href = `${API_BASE_URL}/auth/github`;
   };
 
   return (

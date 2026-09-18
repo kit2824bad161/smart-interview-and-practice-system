@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const envApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').trim().replace(/\/+$/, '');
+const defaultApiUrl = import.meta.env.DEV
+  ? 'http://localhost:5000/api'
+  : 'https://smart-interview-and-practice-system.onrender.com/api';
+
+const envApiUrl = (import.meta.env.VITE_API_URL || defaultApiUrl).trim().replace(/\/+$/, '');
 export const API_BASE_URL = envApiUrl.endsWith('/api') ? envApiUrl : `${envApiUrl}/api`;
 export const api = axios.create({ baseURL: API_BASE_URL, timeout: 30000 });
 
