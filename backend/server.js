@@ -48,9 +48,8 @@ app.use(
       if (allowedOrigins.includes(normalizedOrigin)) {
         return callback(null, true);
       }
-      // Allow Vercel preview deployments if a Vercel domain is configured in allowedOrigins
-      const hasVercelConfigured = allowedOrigins.some(ao => ao.includes('.vercel.app'));
-      if (hasVercelConfigured && normalizedOrigin.endsWith('.vercel.app')) {
+      // Allow any Vercel domain or deployment previews
+      if (normalizedOrigin.endsWith('.vercel.app')) {
         return callback(null, true);
       }
       if (process.env.NODE_ENV !== 'production') {
