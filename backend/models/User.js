@@ -6,6 +6,8 @@ const userSchema = new mongoose.Schema({
   email:    { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, minlength: 6 },
   role:     { type: String, enum: ['candidate', 'admin'], default: 'candidate' },
+  college:  { type: String, trim: true, default: '' },
+  experience: { type: String, enum: ['Beginner', 'Intermediate', 'Advanced'], default: 'Beginner' },
   googleId: { type: String, sparse: true },
   githubId: { type: String, sparse: true },
   resetPasswordToken:  { type: String },

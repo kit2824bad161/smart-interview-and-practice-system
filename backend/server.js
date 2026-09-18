@@ -29,7 +29,13 @@ const rawOrigins = [
 ].filter(Boolean);
 
 const allowedOrigins = Array.from(
-  new Set(rawOrigins.map(url => (typeof url === 'string' ? url.trim().replace(/\/+$/, '') : '')))
+  new Set(
+    rawOrigins.flatMap(url =>
+      typeof url === 'string'
+        ? url.split(',').map(u => u.trim().replace(/\/+$/, ''))
+        : []
+    )
+  )
 ).filter(Boolean);
 
 // Middleware
@@ -42,9 +48,15 @@ app.use(
       if (allowedOrigins.includes(normalizedOrigin)) {
         return callback(null, true);
       }
+      // Allow Vercel preview deployments if a Vercel domain is configured in allowedOrigins
+      const hasVercelConfigured = allowedOrigins.some(ao => ao.includes('.vercel.app'));
+      if (hasVercelConfigured && normalizedOrigin.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
       if (process.env.NODE_ENV !== 'production') {
         return callback(null, true); // Permissive in dev to avoid CORS blocking redirects
       }
+      console.warn(`[CORS REJECTED] Origin: ${origin} not in allowed origins:`, allowedOrigins);
       return callback(new Error(`CORS blocked request from origin: ${origin}`));
     },
     credentials: true,

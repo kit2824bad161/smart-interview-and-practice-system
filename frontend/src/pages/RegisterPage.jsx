@@ -3,14 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
-const requirements=['At least 6 characters','One uppercase letter','One number'];
-import { Check, Eye, EyeOff } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import Button from '../components/Button';
-import { useAuth } from '../context/AuthContext';
-
-const requirements = ['At least 6 characters', 'One uppercase letter', 'One number'];
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -27,23 +19,60 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState('');
 
+  const passwordChecks = [
+    { label: 'At least 6 characters', valid: form.password.length >= 6 },
+    { label: 'One uppercase letter', valid: /[A-Z]/.test(form.password) },
+    { label: 'One number', valid: /[0-9]/.test(form.password) },
+  ];
+
   const submit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.email || form.password.length < 6 || form.password !== form.confirm) {
-      return setError('Complete the required fields and make sure both passwords match.');
+    if (!form.name || !form.name.trim()) {
+      return setError('Please enter your full name.');
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!form.email || !emailRegex.test(form.email.trim())) {
+      return setError('Please enter a valid email address.');
+    }
+    if (form.password.length < 6) {
+      return setError('Password must be at least 6 characters long.');
+    }
+    if (!/[A-Z]/.test(form.password)) {
+      return setError('Password must contain at least one uppercase letter.');
+    }
+    if (!/[0-9]/.test(form.password)) {
+      return setError('Password must contain at least one number.');
+    }
+    if (form.password !== form.confirm) {
+      return setError('Passwords do not match. Please re-enter your password.');
+    }
+
     setError('');
     setLoading(true);
     try {
-      await register(form);
+      await register({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        college: form.college.trim(),
+        experience: form.experience,
+      });
       nav('/dashboard');
     } catch (err) {
-      const msg =
-        err?.response?.data?.message ||
-        (err?.message === 'Network Error'
-          ? 'Cannot connect to backend server. Make sure VITE_API_URL is configured in your deployment settings.'
-          : err?.message || 'Unable to create your account right now.');
-      setError(msg);
+      const backendMsg = err?.response?.data?.message;
+      if (backendMsg) {
+        setError(backendMsg);
+      } else if (err?.response?.status === 409) {
+        setError('An account with this email already exists.');
+      } else if (err?.code === 'ERR_NETWORK' || err?.message === 'Network Error') {
+        setError('Cannot connect to backend server. Make sure the backend is running and VITE_API_URL is configured in your deployment settings.');
+      } else if (err?.response?.status === 400) {
+        setError('Invalid registration details. Please review the form and try again.');
+      } else if (err?.response?.status >= 500) {
+        setError('Database or server error. Please try again later.');
+      } else {
+        setError(err?.message || 'Unable to create your account right now.');
+      }
     } finally {
       setLoading(false);
     }
@@ -139,13 +168,15 @@ export default function RegisterPage() {
             </label>
             <div className="rounded-xl bg-slate-50 p-4 text-xs font-semibold text-slate-500">
               <p className="mb-2 text-slate-700">Password checklist</p>
-              {requirements.map((x) => (
-                <p key={x} className="flex items-center gap-2 py-1">
+              {passwordChecks.map((item) => (
+                <p key={item.label} className="flex items-center gap-2 py-1">
                   <Check
                     size={14}
-                    className={form.password.length >= 6 ? 'text-emerald-500' : 'text-slate-300'}
+                    className={item.valid ? 'text-emerald-500' : 'text-slate-300'}
                   />
-                  {x}
+                  <span className={item.valid ? 'text-emerald-600 font-medium' : 'text-slate-500'}>
+                    {item.label}
+                  </span>
                 </p>
               ))}
             </div>

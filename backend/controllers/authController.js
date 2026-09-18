@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const { sendPasswordResetEmail } = require('../services/mailService');
 
@@ -9,23 +10,79 @@ const signToken = (id) =>
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Name, email, and password are required' });
+    const { name, email, password, role, college, experience, experienceLevel } = req.body;
+
+    console.log(`[AUTH REGISTER] Request received for email: ${email ? String(email).toLowerCase().trim() : 'missing'}`);
+    console.log(`[AUTH REGISTER] MongoDB connection state: ${mongoose.connection.readyState} (1=connected)`);
+
+    if (mongoose.connection.readyState !== 1) {
+      console.error('[AUTH REGISTER] MongoDB connection not ready (state: ' + mongoose.connection.readyState + ')');
+      return res.status(500).json({
+        message: 'Database service is temporarily unavailable. Please verify MongoDB Atlas connection and try again.'
+      });
     }
-    const exists = await User.findOne({ email: email.toLowerCase().trim() });
-    if (exists) return res.status(400).json({ message: 'Email already registered' });
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ message: 'Full name is required' });
+    }
+
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({ message: 'Email address is required' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({ message: 'Please provide a valid email address' });
+    }
+
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ message: 'Password is required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      return res.status(400).json({ message: 'Password must contain at least one uppercase letter' });
+    }
+
+    if (!/[0-9]/.test(password)) {
+      return res.status(400).json({ message: 'Password must contain at least one number' });
+    }
+
+    const exists = await User.findOne({ email: cleanEmail });
+    if (exists) {
+      return res.status(409).json({ message: 'An account with this email already exists.' });
+    }
+
+    const validExp = ['Beginner', 'Intermediate', 'Advanced'];
+    const rawExp = experience || experienceLevel || 'Beginner';
+    const resolvedExperience = validExp.includes(rawExp) ? rawExp : 'Beginner';
 
     const user = await User.create({
       name: name.trim(),
-      email: email.toLowerCase().trim(),
+      email: cleanEmail,
       password,
-      role: role || 'candidate',
+      college: typeof college === 'string' ? college.trim() : '',
+      experience: resolvedExperience,
+      role: role === 'admin' ? 'admin' : 'candidate',
     });
+
+    console.log(`[AUTH REGISTER] User registered successfully with id: ${user._id}`);
     const token = signToken(user._id);
     res.status(201).json({ token, user: user.toJSON() });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('[AUTH REGISTER ERROR]', err.name, err.message);
+    if (err.code === 11000) {
+      return res.status(409).json({ message: 'An account with this email already exists.' });
+    }
+    if (err.name === 'ValidationError') {
+      const firstMsg = Object.values(err.errors || {})[0]?.message || 'Validation error';
+      return res.status(400).json({ message: firstMsg });
+    }
+    res.status(500).json({ message: 'Unable to create your account due to a server error. Please try again.' });
   }
 };
 
